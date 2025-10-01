@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERROR 404 - BigNet The Best BotNet</title>
+    <style>
+        :root {
+            --matrix-green: #00ff41;
+            --cyber-blue: #00ccff;
+            --neon-pink: #ff0080;
+            --terminal-bg: #0a0a0a;
+            --terminal-surface: #111111;
+            --text-matrix: #00ff41;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', 'Monaco', 'Consolas', monospace;
+            background: var(--terminal-bg);
+            color: var(--text-matrix);
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Efecto de scanlines */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(0, 255, 65, 0.03) 2px,
+                    rgba(0, 255, 65, 0.03) 4px
+                );
+            pointer-events: none;
+            z-index: 1;
+            animation: scanlines 0.1s linear infinite;
+        }
+
+        @keyframes scanlines {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(4px); }
+        }
+
+        /* Efecto de lluvia matrix */
+        .matrix-rain {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .matrix-char {
+            position: absolute;
+            color: var(--matrix-green);
+            font-size: 14px;
+            animation: matrixFall linear infinite;
+            text-shadow: 0 0 8px currentColor;
+        }
+
+        @keyframes matrixFall {
+            to {
+                transform: translateY(100vh);
+                opacity: 0;
+            }
+        }
+
+        /* Contenedor principal */
+        .error-container {
+            position: relative;
+            z-index: 2;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        /* Glitch effect para el 404 */
+        .error-code {
+            font-size: 12rem;
+            font-weight: 900;
+            color: var(--matrix-green);
+            text-shadow: 
+                0 0 20px var(--matrix-green),
+                0 0 40px var(--matrix-green);
+            margin-bottom: 2rem;
+            position: relative;
+            animation: glitch 3s infinite;
+        }
+
+        @keyframes glitch {
+            0%, 100% {
+                transform: translate(0);
+                text-shadow: 
+                    0 0 20px var(--matrix-green),
+                    0 0 40px var(--matrix-green);
+            }
+            25% {
+                transform: translate(-5px, 2px);
+                text-shadow: 
+                    0 0 20px var(--neon-pink),
+                    0 0 40px var(--neon-pink);
+            }
+            50% {
+                transform: translate(3px, -3px);
+                text-shadow: 
+                    0 0 20px var(--cyber-blue),
+                    0 0 40px var(--cyber-blue);
+            }
+            75% {
+                transform: translate(-2px, 4px);
+                text-shadow: 
+                    0 0 20px var(--matrix-green),
+                    0 0 40px var(--matrix-green);
+            }
+        }
+
+        /* Mensaje de error */
+        .error-message {
+            font-size: 1.5rem;
+            margin-bottom: 3rem;
+            color: var(--cyber-blue);
+            text-shadow: 0 0 10px var(--cyber-blue);
+            max-width: 600px;
+            line-height: 1.6;
+        }
+
+        .error-message::before {
+            content: '>_ ';
+            color: var(--matrix-green);
+        }
+
+        /* Terminal style box */
+        .terminal-box {
+            background: var(--terminal-surface);
+            border: 2px solid var(--matrix-green);
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 
+                0 0 30px rgba(0, 255, 65, 0.3),
+                inset 0 0 20px rgba(0, 255, 65, 0.1);
+            margin-bottom: 3rem;
+            position: relative;
+            max-width: 500px;
+        }
+
+        .terminal-box::before {
+            content: 'SYSTEM_DIAGNOSTIC';
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background: var(--terminal-bg);
+            padding: 0 10px;
+            color: var(--matrix-green);
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .status-line {
+            margin: 0.5rem 0;
+            text-align: left;
+        }
+
+        .status-line::before {
+            content: '└─ ';
+            color: var(--matrix-green);
+        }
+
+        .status-ok {
+            color: var(--matrix-green);
+        }
+
+        .status-error {
+            color: var(--neon-pink);
+        }
+
+        .status-warning {
+            color: #ffcc00;
+        }
+
+        /* Botones de acción */
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            background: transparent;
+            border: 2px solid var(--matrix-green);
+            color: var(--matrix-green);
+            padding: 1rem 2rem;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            background: rgba(0, 255, 65, 0.1);
+            box-shadow: 
+                0 0 20px var(--matrix-green),
+                inset 0 0 10px rgba(0, 255, 65, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            background: rgba(0, 255, 65, 0.1);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 20px var(--matrix-green);
+            }
+            50% {
+                box-shadow: 0 0 30px var(--matrix-green), 0 0 40px var(--matrix-green);
+            }
+        }
+
+        /* Efecto de typing */
+        .typing {
+            border-right: 2px solid var(--matrix-green);
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { border-color: var(--matrix-green); }
+            50% { border-color: transparent; }
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 3rem;
+            color: var(--cyber-blue);
+            font-size: 0.9rem;
+            text-shadow: 0 0 5px var(--cyber-blue);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .error-code {
+                font-size: 8rem;
+            }
+            
+            .error-message {
+                font-size: 1.2rem;
+            }
+            
+            .terminal-box {
+                padding: 1.5rem;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .error-code {
+                font-size: 6rem;
+            }
+            
+            .error-message {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Efecto de lluvia matrix -->
+    <div class="matrix-rain" id="matrixRain"></div>
+
+    <!-- Contenido principal -->
+    <div class="error-container">
+        <div class="error-code">404</div>
+        
+        <div class="error-message">
+            ARCHIVO NO ENCONTRADO - SISTEMA COMPROMETIDO
+        </div>
+
+        <div class="terminal-box">
+            <div class="status-line status-ok">✓ CONEXIÓN PRINCIPAL: <span class="typing">ESTABLE</span></div>
+            <div class="status-line status-error">✗ RUTA SOLICITADA: NO ENCONTRADA</div>
+            <div class="status-line status-warning">⚠ SERVIDOR: OPERATIVO</div>
+            <div class="status-line status-ok">✓ RED: CONECTADA</div>
+            <div class="status-line status-error">✗ RECURSO: ELIMINADO O MOVIDO</div>
+        </div>
+
+        <div class="action-buttons">
+            <a href="/" class="btn btn-primary">VOLVER AL SISTEMA PRINCIPAL</a>
+            <a href="https://discord.gg/bm5AbPtXJD" class="btn" target="_blank">SOLICITAR SOPORTE EN DISCORD</a>
+        </div>
+
+        <div class="footer">
+            BigNet The Best BotNet © 2024 - SYSTEM_SECURE
+        </div>
+    </div>
+
+    <script>
+        // Generar efecto de lluvia matrix
+        function createMatrixRain() {
+            const matrixRain = document.getElementById('matrixRain');
+            const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
+            
+            function createChar() {
+                const char = document.createElement('div');
+                char.className = 'matrix-char';
+                char.textContent = chars[Math.floor(Math.random() * chars.length)];
+                char.style.left = Math.random() * 100 + 'vw';
+                char.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                char.style.opacity = Math.random() * 0.5 + 0.3;
+                char.style.fontSize = (Math.random() * 10 + 12) + 'px';
+                
+                matrixRain.appendChild(char);
+                
+                // Remover caracter después de la animación
+                setTimeout(() => {
+                    char.remove();
+                }, 5000);
+            }
+            
+            // Crear caracteres continuamente
+            setInterval(createChar, 50);
+            
+            // Crear algunos caracteres iniciales
+            for (let i = 0; i < 20; i++) {
+                setTimeout(createChar, i * 100);
+            }
+        }
+
+        // Efecto de escritura para el mensaje
+        function typeWriter() {
+            const message = document.querySelector('.error-message');
+            const text = message.textContent;
+            message.textContent = '';
+            let i = 0;
+            
+            function type() {
+                if (i < text.length) {
+                    message.textContent += text.charAt(i);
+                    i++;
+                    setTimeout(type, 50);
+                } else {
+                    message.classList.add('typing');
+                }
+            }
+            
+            setTimeout(type, 1000);
+        }
+
+        // Inicializar efectos cuando la página cargue
+        document.addEventListener('DOMContentLoaded', function() {
+            createMatrixRain();
+            typeWriter();
+            
+            // Efecto de sonido opcional (descomentar si quieres sonido)
+            /*
+            const clickSound = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==');
+            document.querySelectorAll('.btn').forEach(btn => {
+                btn.addEventListener('mouseenter', () => {
+                    clickSound.currentTime = 0;
+                    clickSound.play();
+                });
+            });
+            */
+        });
+
+        // Efecto de glitch aleatorio adicional
+        setInterval(() => {
+            const code = document.querySelector('.error-code');
+            code.style.animation = 'none';
+            setTimeout(() => {
+                code.style.animation = 'glitch 3s infinite';
+            }, 10);
+        }, 5000);
+    </script>
+</body>
+</html>
