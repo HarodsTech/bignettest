@@ -1,5 +1,5 @@
 const express = require('express');
-const { Client, GatewayIntentBits, Options } = require('discord.js');
+const { Client, GatewayIntentBits, Options, WebhookClient } = require('discord.js');
 const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
@@ -53,8 +53,13 @@ let serverStats = {
     lastUpdate: new Date()
 };
 
+// Webhook Clients
+const purchaseWebhook = process.env.PURCHASE_WEBHOOK_URL ? new WebhookClient({ url: process.env.PURCHASE_WEBHOOK_URL }) : null;
+const joinWebhook = process.env.JOIN_WEBHOOK_URL ? new WebhookClient({ url: process.env.JOIN_WEBHOOK_URL }) : null;
+
 // Obtener Guild ID desde variables de entorno
-const GUILD_ID = process.env.GUILD_ID || '1346962285016387666';
+const GUILD_ID = process.env.GUILD_ID || null;
+const INVITE_URL = process.env.INVITE_URL || 'https://discord.gg/tu-invite';
 
 // Comandos del bot
 const commands = {
@@ -63,6 +68,7 @@ const commands = {
     '!status': 'Muestra el estado actual del servidor',
     '!info': 'Muestra información sobre BigNet',
     '!guildid': 'Muestra el ID del servidor actual'
+
 };
 
 // Métodos de ataque disponibles
@@ -70,7 +76,40 @@ const attackMethods = {
     'udp': 'UDP Flood - Envía paquetes UDP masivos',
     'tcp': 'TCP Flood - Satura conexiones TCP',
     'syn': 'SYN Flood - Ataque de handshake TCP',
-    'mix': 'MIX Attack - Combina múltiples métodos'
+    'mix': 'MIX Attack - Combina múltiples métodos',
+    'vse': 'VSE Protocol - Para Valve Source Engine',
+    'fivem': 'FIVEM Attack - Específico para servidores FiveM',
+    'ovhudp': 'OVH-UDP - Bypass para protección OVH',
+    'ovhtcp': 'OVH-TCP - TCP randomizado para WAF',
+    'discord': 'Discord Attack - Específico para Discord'
+};
+
+// Planes de precios
+const pricingPlans = {
+    'basic': {
+        name: 'Plan Básico',
+        price: 40,
+        features: ['3 métodos de ataque', 'Soporte básico', 'Duración máxima: 1 hora'],
+        duration: '1 mes'
+    },
+    'pro': {
+        name: 'Plan Pro',
+        price: 55,
+        features: ['Todos los métodos', 'Soporte prioritario', 'Duración máxima: 3 horas', 'Panel personalizado'],
+        duration: '1 mes'
+    },
+    'enterprise': {
+        name: 'Plan Enterprise',
+        price: 70,
+        features: ['Todos los métodos', 'Soporte 24/7', 'Duración ilimitada', 'Panel personalizado', 'Consultoría'],
+        duration: '1 mes'
+    },
+    'lifetime': {
+        name: 'Plan Lifetime',
+        price: 150,
+        features: ['Acceso permanente', 'Todos los métodos', 'Soporte 24/7', 'Actualizaciones gratuitas', 'Panel premium'],
+        duration: 'Permanente'
+    }
 };
 
 // Función para obtener el guild específico o el primero disponible
@@ -78,22 +117,13 @@ function getTargetGuild() {
     if (GUILD_ID) {
         const specificGuild = client.guilds.cache.get(GUILD_ID);
         if (specificGuild) {
-            console.log(`🎯 Usando servidor específico: ${specificGuild.name} (${GUILD_ID})`);
             return specificGuild;
         } else {
             console.log(`❌ No se encontró el servidor con ID: ${GUILD_ID}`);
-            console.log(`📋 Servidores disponibles: ${client.guilds.cache.map(g => g.name).join(', ')}`);
         }
     }
     
-    // Fallback al primer servidor disponible
-    const firstGuild = client.guilds.cache.first();
-    if (firstGuild) {
-        console.log(`🔍 Usando primer servidor disponible: ${firstGuild.name}`);
-        return firstGuild;
-    }
-    
-    return null;
+    return client.guilds.cache.first();
 }
 
 // Función para obtener íconos de estado
@@ -112,29 +142,189 @@ async function getServerStats() {
     return serverStats;
 }
 
+// Función para enviar notificación de compra al webhook
+async function sendPurchaseNotification(purchaseData) {
+    if (!purchaseWebhook) {
+        console.log('❌ Webhook de compras no configurado');
+        return false;
+    }
+
+    try {
+        const embed = {
+            title: '🛒 Nueva Compra Recibida',
+            color: 0x00ff00,
+            fields: [
+                {
+                    name: '📦 Producto',
+                    value: purchaseData.product,
+                    inline: true
+                },
+                {
+                    name: '💳 Precio',
+                    value: `$${purchaseData.price}`,
+                    inline: true
+                },
+                {
+                    name: '👤 Cliente',
+                    value: purchaseData.discordId || 'No especificado',
+                    inline: true
+                },
+                {
+                    name: '📧 Email',
+                    value: purchaseData.email || 'No especificado',
+                    inline: true
+                },
+                {
+                    name: '🆔 Order ID',
+                    value: purchaseData.orderId,
+                    inline: true
+                },
+                {
+                    name: '⏰ Fecha',
+                    value: new Date().toLocaleString('es-ES'),
+                    inline: true
+                }
+            ],
+            timestamp: new Date(),
+            footer: {
+                text: 'BigNet Sales System'
+            }
+        };
+
+        await purchaseWebhook.send({
+            embeds: [embed]
+        });
+
+        console.log(`✅ Notificación de compra enviada: ${purchaseData.orderId}`);
+        return true;
+    } catch (error) {
+        console.error('❌ Error enviando notificación de compra:', error);
+        return false;
+    }
+}
+
+// Función para enviar notificación de nuevo miembro al webhook
+async function sendJoinNotification(member) {
+    if (!joinWebhook) {
+        console.log('❌ Webhook de miembros no configurado');
+        return false;
+    }
+
+    try {
+        const embed = {
+            title: '🎉 Nuevo Miembro en el Servidor',
+            color: 0x0099ff,
+            thumbnail: {
+                url: member.user.displayAvatarURL()
+            },
+            fields: [
+                {
+                    name: '👤 Usuario',
+                    value: `${member.user.username}#${member.user.discriminator}`,
+                    inline: true
+                },
+                {
+                    name: '🆔 ID',
+                    value: member.user.id,
+                    inline: true
+                },
+                {
+                    name: '📅 Cuenta Creada',
+                    value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`,
+                    inline: true
+                },
+                {
+                    name: '👥 Total de Miembros',
+                    value: member.guild.memberCount.toString(),
+                    inline: true
+                }
+            ],
+            timestamp: new Date(),
+            footer: {
+                text: 'BigNet Community'
+            }
+        };
+
+        await joinWebhook.send({
+            embeds: [embed]
+        });
+
+        console.log(`✅ Notificación de nuevo miembro enviada: ${member.user.username}`);
+        return true;
+    } catch (error) {
+        console.error('❌ Error enviando notificación de nuevo miembro:', error);
+        return false;
+    }
+}
+
 // Evento cuando el bot se conecta
 client.on('ready', () => {
     console.log(`✅ Bot conectado como ${client.user.tag}`);
     console.log(`🏰 Servidores conectados: ${client.guilds.cache.size}`);
     
-    // Listar todos los servidores disponibles
+    // Verificar webhooks
+    if (purchaseWebhook) {
+        console.log('🛒 Webhook de compras configurado');
+    } else {
+        console.log('❌ Webhook de compras NO configurado');
+    }
+    
+    if (joinWebhook) {
+        console.log('👥 Webhook de miembros configurado');
+    } else {
+        console.log('❌ Webhook de miembros NO configurado');
+    }
+    
     client.guilds.cache.forEach(guild => {
         console.log(`   - ${guild.name} (ID: ${guild.id})`);
     });
     
-    // Verificar si tenemos el guild específico
-    if (GUILD_ID) {
-        const targetGuild = client.guilds.cache.get(GUILD_ID);
-        if (targetGuild) {
-            console.log(`🎯 Servidor objetivo configurado: ${targetGuild.name}`);
-        } else {
-            console.log(`❌ ADVERTENCIA: No se pudo encontrar el servidor con ID ${GUILD_ID}`);
-            console.log(`💡 Asegúrate de que el bot esté invitado a ese servidor`);
-        }
-    }
-    
     updateServerStats();
     setInterval(updateServerStats, 30000);
+});
+
+// Evento cuando un nuevo miembro se une al servidor
+client.on('guildMemberAdd', async (member) => {
+    console.log(`🎉 Nuevo miembro: ${member.user.username}`);
+    
+    // Enviar notificación al webhook
+    await sendJoinNotification(member);
+    
+    // Opcional: Dar la bienvenida en un canal específico
+    const welcomeChannel = member.guild.channels.cache.find(
+        channel => channel.name.includes('bienvenida') || channel.name.includes('welcome')
+    );
+    
+    if (welcomeChannel) {
+        const welcomeEmbed = {
+            color: 0x00ff00,
+            title: `🎉 ¡Bienvenido a ${member.guild.name}!`,
+            description: `Hola ${member.user}, gracias por unirte a nuestra comunidad.`,
+            fields: [
+                {
+                    name: '📊 Miembros',
+                    value: `Ahora somos ${member.guild.memberCount} miembros`,
+                    inline: true
+                },
+                {
+                    name: '📝 Comandos',
+                    value: 'Usa `!help` para ver los comandos disponibles',
+                    inline: true
+                },
+                
+            ],
+            thumbnail: {
+                url: member.user.displayAvatarURL()
+            },
+            timestamp: new Date()
+        };
+        
+        try {
+            await welcomeChannel.send({ embeds: [welcomeEmbed] });
+        } catch (error) {
+            console.log('⚠️ No se pudo enviar mensaje de bienvenida:', error.message);
+        }
+    }
 });
 
 // Evento cuando llega un mensaje
@@ -173,7 +363,7 @@ client.on('messageCreate', async (message) => {
         
         message.reply(statusText);
     }
-    
+  
     // Comando de información del servidor
     if (content === '!guildid' || content === '!serverid') {
         const guild = getTargetGuild();
@@ -188,12 +378,13 @@ client.on('messageCreate', async (message) => {
     if (content === '!info' || content === '!acerca') {
         const infoText = `**🌐 BigNet - The Best BotNet**\n
 🚀 **Servicios Premium de DDoS**
-💻 **Métodos Especializados**
+💻 **${Object.keys(attackMethods).length} Métodos Especializados**
 🛡️ **Máxima Eficiencia y Seguridad**
 📞 **Soporte 24/7**
 
 🔗 **Sitio Web:** https://bignettest.onrender.com
-💎 **Planes disponibles**`;
+👥 **Únete:** ${INVITE_URL}
+💎 **Planes desde €${pricingPlans.basic.price}**`;
         
         message.reply(infoText);
     }
@@ -235,9 +426,6 @@ async function updateServerStats() {
             return;
         }
         
-        console.log(`🏰 Actualizando estadísticas del servidor: ${guild.name} (${guild.id})`);
-        console.log(`📊 Miembros totales: ${guild.memberCount}`);
-        
         // Cargar miembros
         try {
             await guild.members.fetch({ 
@@ -258,12 +446,6 @@ async function updateServerStats() {
             dnd: allHumanMembers.filter(m => m.presence?.status === 'dnd').size,
             offline: allHumanMembers.filter(m => !m.presence || m.presence.status === 'offline').size
         };
-        
-        console.log('=== ESTADÍSTICAS ===');
-        console.log(`🟢 Online: ${statusCounts.online}`);
-        console.log(`🟡 Idle: ${statusCounts.idle}`);
-        console.log(`🔴 DND: ${statusCounts.dnd}`);
-        console.log(`⚫ Offline: ${statusCounts.offline}`);
         
         // Actualizar estadísticas
         const onlineCount = statusCounts.online + statusCounts.idle + statusCounts.dnd;
@@ -298,8 +480,6 @@ async function updateServerStats() {
             lastUpdate: new Date()
         };
         
-        console.log(`📊 Resumen - Online: ${serverStats.onlineUsers}, Total: ${serverStats.totalUsers}`);
-        
     } catch (error) {
         console.error('❌ Error actualizando estadísticas:', error);
         serverStats = {
@@ -312,104 +492,86 @@ async function updateServerStats() {
 
 // === RUTAS API ===
 
-// Ruta para obtener información del guild
-app.get('/api/guild-info', async (req, res) => {
+// Endpoint para procesar compras
+app.post('/api/purchase', async (req, res) => {
     try {
-        const guild = getTargetGuild();
-        if (!guild) {
-            return res.json({ 
-                success: false, 
-                error: 'No se encontró el servidor',
-                availableGuilds: client.guilds.cache.map(g => ({ name: g.name, id: g.id }))
+        const { product, discordId, email, price, plan } = req.body;
+        
+        if (!product || !price) {
+            return res.status(400).json({
+                success: false,
+                error: 'Producto y precio son requeridos'
             });
         }
-
-        const guildInfo = {
-            name: guild.name,
-            id: guild.id,
-            memberCount: guild.memberCount,
-            ownerId: guild.ownerId,
-            createdTimestamp: guild.createdTimestamp,
-            description: guild.description,
-            features: guild.features,
-            icon: guild.iconURL(),
-            configuredGuildId: GUILD_ID
+        
+        const orderId = 'ORD-' + Date.now();
+        const purchaseData = {
+            product,
+            discordId: discordId || 'No especificado',
+            email: email || 'No especificado',
+            price,
+            plan: plan || 'custom',
+            orderId,
+            timestamp: new Date()
         };
-
-        res.json({
-            success: true,
-            data: guildInfo,
-            timestamp: new Date().toISOString()
+        
+        console.log('🛒 Nueva compra recibida:', purchaseData);
+        
+        // Enviar notificación al webhook de Discord
+        const webhookSent = await sendPurchaseNotification(purchaseData);
+        
+        // Simular procesamiento de pago
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        res.json({ 
+            success: true, 
+            message: 'Compra procesada correctamente',
+            orderId: orderId,
+            webhookSent: webhookSent,
+            data: purchaseData
         });
+        
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
+        console.error('❌ Error procesando compra:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor' 
         });
     }
 });
 
-// Ruta para listar todos los servidores disponibles
-app.get('/api/available-guilds', (req, res) => {
-    try {
-        const guilds = Array.from(client.guilds.cache.values()).map(guild => ({
-            id: guild.id,
-            name: guild.name,
-            memberCount: guild.memberCount,
-            icon: guild.iconURL(),
-            isTarget: guild.id === GUILD_ID
-        }));
-
-        res.json({
-            success: true,
-            data: guilds,
-            configuredGuildId: GUILD_ID,
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-});
-
-// Ruta para cambiar el guild objetivo (solo para desarrollo)
-app.post('/api/set-guild', (req, res) => {
-    if (process.env.NODE_ENV !== 'development') {
-        return res.status(403).json({
-            success: false,
-            error: 'Esta función solo está disponible en modo desarrollo'
-        });
-    }
-
-    const { guildId } = req.body;
-    if (!guildId) {
-        return res.status(400).json({
-            success: false,
-            error: 'Se requiere guildId'
-        });
-    }
-
-    const newGuild = client.guilds.cache.get(guildId);
-    if (!newGuild) {
-        return res.status(404).json({
-            success: false,
-            error: 'Servidor no encontrado'
-        });
-    }
-
-    // En una aplicación real, guardarías esto en la base de datos
-    // Por ahora solo actualizamos la variable (se reseteará al reiniciar)
-    console.log(`🎯 Cambiando servidor objetivo a: ${newGuild.name} (${guildId})`);
-    
+// Endpoint para obtener planes de precios
+app.get('/api/pricing', (req, res) => {
     res.json({
         success: true,
-        message: `Servidor objetivo cambiado a: ${newGuild.name}`,
-        guild: {
-            id: newGuild.id,
-            name: newGuild.name
-        }
+        data: pricingPlans,
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Endpoint para crear invitación al servidor
+app.get('/api/invite', (req, res) => {
+    res.json({
+        success: true,
+        data: {
+            inviteUrl: INVITE_URL,
+            botInviteUrl: `https://discord.com/oauth2/authorize?client_id=${client.user?.id}&permissions=8&scope=bot%20applications.commands`,
+            guildId: GUILD_ID
+        },
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Endpoint para verificar webhooks
+app.get('/api/webhooks/status', (req, res) => {
+    res.json({
+        success: true,
+        data: {
+            purchaseWebhook: !!purchaseWebhook,
+            joinWebhook: !!joinWebhook,
+            guild: getTargetGuild()?.name || 'No disponible'
+        },
+        timestamp: new Date().toISOString()
     });
 });
 
@@ -452,6 +614,14 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+app.get('/pricing', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'pricing.html'));
+});
+
+app.get('/buy', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'buy.html'));
+});
+
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
@@ -471,6 +641,10 @@ app.get('/health', (req, res) => {
         status: 'OK', 
         bot: client.user ? `Conectado como ${client.user.tag}` : 'Desconectado',
         guild: guild ? `${guild.name} (${guild.id})` : 'No configurado',
+        webhooks: {
+            purchase: !!purchaseWebhook,
+            join: !!joinWebhook
+        },
         timestamp: new Date().toISOString()
     });
 });
@@ -510,13 +684,8 @@ if (!BOT_TOKEN) {
 app.listen(PORT, () => {
     console.log(`🌐 Servidor web ejecutándose en puerto ${PORT}`);
     console.log(`📊 Panel disponible en http://localhost:${PORT}`);
-    console.log(`🔧 Modo: ${process.env.NODE_ENV || 'development'}`);
-    
-    if (GUILD_ID) {
-        console.log(`🎯 Guild ID configurado: ${GUILD_ID}`);
-    } else {
-        console.log('⚠️  No se configuró GUILD_ID, usando primer servidor disponible');
-    }
+    console.log(`🛒 Sistema de compras activado`);
+    console.log(`👥 Sistema de miembros activado`);
 });
 
 // Conectar el bot
