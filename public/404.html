@@ -6,12 +6,14 @@
     <title>ERROR 404 - BigNet The Best BotNet</title>
     <style>
         :root {
-            --matrix-green: #00ff41;
-            --cyber-blue: #00ccff;
-            --neon-pink: #ff0080;
+            --matrix-blue: #00a8ff;
+
+            --cyber-blue: #0099ff;
+            --neon-blue: #0066ff;
             --terminal-bg: #0a0a0a;
             --terminal-surface: #111111;
-            --text-matrix: #00ff41;
+            --text-matrix: #00a8ff;
+          
         }
 
         * {
@@ -98,10 +100,10 @@
         .error-code {
             font-size: 12rem;
             font-weight: 900;
-            color: var(--matrix-green);
+            color: var(--matrix-blue);
             text-shadow: 
-                0 0 20px var(--matrix-green),
-                0 0 40px var(--matrix-green);
+                0 0 20px var(--matrix-blue),
+                0 0 40px var(--matrix-blue);
             margin-bottom: 2rem;
             position: relative;
             animation: glitch 3s infinite;
@@ -111,14 +113,14 @@
             0%, 100% {
                 transform: translate(0);
                 text-shadow: 
-                    0 0 20px var(--matrix-green),
-                    0 0 40px var(--matrix-green);
+                    0 0 20px var(--matrix-blue),
+                    0 0 40px var(--matrix-blue);
             }
             25% {
                 transform: translate(-5px, 2px);
                 text-shadow: 
-                    0 0 20px var(--neon-pink),
-                    0 0 40px var(--neon-pink);
+                    0 0 20px var(--neon-blue),
+                    0 0 40px var(--neon-blue);
             }
             50% {
                 transform: translate(3px, -3px);
@@ -129,8 +131,8 @@
             75% {
                 transform: translate(-2px, 4px);
                 text-shadow: 
-                    0 0 20px var(--matrix-green),
-                    0 0 40px var(--matrix-green);
+                    0 0 20px var(--matrix-blue),
+                    0 0 40px var(--matrix-blue);
             }
         }
 
@@ -146,13 +148,13 @@
 
         .error-message::before {
             content: '>_ ';
-            color: var(--matrix-green);
+            color: var(--matrix-blue);
         }
 
         /* Terminal style box */
         .terminal-box {
             background: var(--terminal-surface);
-            border: 2px solid var(--matrix-green);
+            border: 2px solid var(--matrix-blue);
             padding: 2rem;
             border-radius: 8px;
             box-shadow: 
@@ -170,7 +172,7 @@
             left: 20px;
             background: var(--terminal-bg);
             padding: 0 10px;
-            color: var(--matrix-green);
+            color: var(--matrix-blue);
             font-size: 0.8rem;
             font-weight: bold;
         }
@@ -182,11 +184,11 @@
 
         .status-line::before {
             content: '└─ ';
-            color: var(--matrix-green);
+            color: var(--matrix-blue);
         }
 
         .status-ok {
-            color: var(--matrix-green);
+            color: var(--matrix-blue);
         }
 
         .status-error {
@@ -207,8 +209,8 @@
 
         .btn {
             background: transparent;
-            border: 2px solid var(--matrix-green);
-            color: var(--matrix-green);
+            border: 2px solid var(--matrix-blue);
+            color: var(--matrix-blue);
             padding: 1rem 2rem;
             font-family: 'Courier New', monospace;
             font-weight: bold;
@@ -239,7 +241,7 @@
         .btn:hover {
             background: rgba(0, 255, 65, 0.1);
             box-shadow: 
-                0 0 20px var(--matrix-green),
+                0 0 20px var(--matrix-blue),
                 inset 0 0 10px rgba(0, 255, 65, 0.1);
             transform: translateY(-2px);
         }
@@ -251,21 +253,21 @@
 
         @keyframes pulse {
             0%, 100% {
-                box-shadow: 0 0 20px var(--matrix-green);
+                box-shadow: 0 0 20px var(--matrix-blue);
             }
             50% {
-                box-shadow: 0 0 30px var(--matrix-green), 0 0 40px var(--matrix-green);
+                box-shadow: 0 0 30px var(--matrix-blue), 0 0 40px var(--matrix-blue);
             }
         }
 
         /* Efecto de typing */
         .typing {
-            border-right: 2px solid var(--matrix-green);
+            border-right: 2px solid var(--matrix-blue);
             animation: blink 1s infinite;
         }
 
         @keyframes blink {
-            0%, 100% { border-color: var(--matrix-green); }
+            0%, 100% { border-color: var(--matrix-blue); }
             50% { border-color: transparent; }
         }
 
