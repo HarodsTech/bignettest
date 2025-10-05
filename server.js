@@ -1,9 +1,10 @@
 const express = require('express');
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, Options } = require('discord.js');
 const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
 dotenv.config();
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -11,6 +12,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+app.use(express.urlencoded({ extended: true }));
 
 // Configuración del Bot de Discord
 const client = new Client({
@@ -19,11 +21,26 @@ const client = new Client({
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildPresences
-    ]
+        GatewayIntentBits.GuildPresences,
+        GatewayIntentBits.GuildVoiceStates
+    ],
+    partials: [
+        'MESSAGE',
+        'CHANNEL', 
+        'REACTION',
+        'USER',
+        'GUILD_MEMBER'
+    ],
+    makeCache: Options.cacheWithLimits({
+        ...Options.defaultMakeCacheSettings,
+        'GuildMemberManager': {
+            maxSize: 500,
+            keepOverLimit: member => !member.user.bot
+        }
+    })
 });
 
-// Variables globales para almacenar datos del servidor
+// Variables globales
 let serverStats = {
     onlineUsers: 0,
     activeAttacks: 0,
@@ -36,12 +53,16 @@ let serverStats = {
     lastUpdate: new Date()
 };
 
+// Obtener Guild ID desde variables de entorno
+const GUILD_ID = process.env.GUILD_ID || '1346962285016387666';
+
 // Comandos del bot
 const commands = {
-    '!attack': 'Inicia un ataque DDoS - Uso: !attack <método> <objetivo> <duración>',
+    '!help': 'Muestra todos los comandos disponibles',
     '!methods': 'Muestra todos los métodos de ataque disponibles',
     '!status': 'Muestra el estado actual del servidor',
-    '!help': 'Muestra todos los comandos disponibles'
+    '!info': 'Muestra información sobre BigNet',
+    '!guildid': 'Muestra el ID del servidor actual'
 };
 
 // Métodos de ataque disponibles
@@ -49,26 +70,75 @@ const attackMethods = {
     'udp': 'UDP Flood - Envía paquetes UDP masivos',
     'tcp': 'TCP Flood - Satura conexiones TCP',
     'syn': 'SYN Flood - Ataque de handshake TCP',
-    'mix': 'MIX Attack - Combina múltiples métodos',
-    'vse': 'VSE Protocol - Para Valve Source Engine',
-    'fivem': 'FIVEM Attack - Específico para servidores FiveM',
-    'ovhudp': 'OVH-UDP - Bypass para protección OVH',
-    'ovhtcp': 'OVH-TCP - TCP randomizado para WAF',
-    'discord': 'Discord Attack - Específico para Discord'
+    'mix': 'MIX Attack - Combina múltiples métodos'
 };
+
+// Función para obtener el guild específico o el primero disponible
+function getTargetGuild() {
+    if (GUILD_ID) {
+        const specificGuild = client.guilds.cache.get(GUILD_ID);
+        if (specificGuild) {
+            console.log(`🎯 Usando servidor específico: ${specificGuild.name} (${GUILD_ID})`);
+            return specificGuild;
+        } else {
+            console.log(`❌ No se encontró el servidor con ID: ${GUILD_ID}`);
+            console.log(`📋 Servidores disponibles: ${client.guilds.cache.map(g => g.name).join(', ')}`);
+        }
+    }
+    
+    // Fallback al primer servidor disponible
+    const firstGuild = client.guilds.cache.first();
+    if (firstGuild) {
+        console.log(`🔍 Usando primer servidor disponible: ${firstGuild.name}`);
+        return firstGuild;
+    }
+    
+    return null;
+}
+
+// Función para obtener íconos de estado
+function getStatusIcon(status) {
+    const icons = {
+        'online': '🟢',
+        'idle': '🟡',
+        'dnd': '🔴',
+        'offline': '⚫'
+    };
+    return icons[status] || '⚫';
+}
+
+// Función para obtener estadísticas del servidor
+async function getServerStats() {
+    return serverStats;
+}
 
 // Evento cuando el bot se conecta
 client.on('ready', () => {
     console.log(`✅ Bot conectado como ${client.user.tag}`);
-    updateServerStats();
+    console.log(`🏰 Servidores conectados: ${client.guilds.cache.size}`);
     
-    // Actualizar estadísticas cada 30 segundos
+    // Listar todos los servidores disponibles
+    client.guilds.cache.forEach(guild => {
+        console.log(`   - ${guild.name} (ID: ${guild.id})`);
+    });
+    
+    // Verificar si tenemos el guild específico
+    if (GUILD_ID) {
+        const targetGuild = client.guilds.cache.get(GUILD_ID);
+        if (targetGuild) {
+            console.log(`🎯 Servidor objetivo configurado: ${targetGuild.name}`);
+        } else {
+            console.log(`❌ ADVERTENCIA: No se pudo encontrar el servidor con ID ${GUILD_ID}`);
+            console.log(`💡 Asegúrate de que el bot esté invitado a ese servidor`);
+        }
+    }
+    
+    updateServerStats();
     setInterval(updateServerStats, 30000);
 });
 
 // Evento cuando llega un mensaje
 client.on('messageCreate', async (message) => {
-    // Ignorar mensajes de otros bots
     if (message.author.bot) return;
     
     const content = message.content.toLowerCase();
@@ -104,6 +174,30 @@ client.on('messageCreate', async (message) => {
         message.reply(statusText);
     }
     
+    // Comando de información del servidor
+    if (content === '!guildid' || content === '!serverid') {
+        const guild = getTargetGuild();
+        if (guild) {
+            message.reply(`**🏰 Información del Servidor:**\nNombre: ${guild.name}\nID: ${guild.id}\nMiembros: ${guild.memberCount}`);
+        } else {
+            message.reply('❌ No se pudo obtener información del servidor');
+        }
+    }
+    
+    // Comando de información
+    if (content === '!info' || content === '!acerca') {
+        const infoText = `**🌐 BigNet - The Best BotNet**\n
+🚀 **Servicios Premium de DDoS**
+💻 **Métodos Especializados**
+🛡️ **Máxima Eficiencia y Seguridad**
+📞 **Soporte 24/7**
+
+🔗 **Sitio Web:** https://bignettest.onrender.com
+💎 **Planes disponibles**`;
+        
+        message.reply(infoText);
+    }
+    
     // Comando de ataque (simulado)
     if (content.startsWith('!attack')) {
         const args = content.split(' ');
@@ -126,55 +220,64 @@ client.on('messageCreate', async (message) => {
         
         message.reply(`**🎯 Ataque Iniciado!**\nMétodo: ${method.toUpperCase()}\nObjetivo: ${target}\nDuración: ${duration} segundos\n\n⚠️ **ADVERTENCIA:** Este es un sistema de demostración.`);
         
-        // Simular fin de ataque después del tiempo especificado
         setTimeout(() => {
             serverStats.activeAttacks = Math.max(0, serverStats.activeAttacks - 1);
             message.channel.send(`**✅ Ataque completado:** ${method.toUpperCase()} contra ${target}`);
         }, Math.min(parseInt(duration) * 1000, 30000));
     }
-    
-    // Comando de información
-    if (content === '!info' || content === '!acerca') {
-        const infoText = `**🌐 BigNet - The Best BotNet**\n
-🚀 **Servicios Premium de DDoS**
-💻 **9 Métodos Especializados**
-🛡️ **Máxima Eficiencia y Seguridad**
-📞 **Soporte 24/7**
-
-🔗 **Sitio Web:** https://bignettest.onrender.com
-💎 **Planes desde $299**`;
-        
-        message.reply(infoText);
-    }
 });
 
-// Función para actualizar estadísticas del servidor
 async function updateServerStats() {
     try {
-        if (!client.guilds.cache.size) return;
+        const guild = getTargetGuild();
+        if (!guild) {
+            console.log('❌ No hay servidores disponibles');
+            return;
+        }
         
-        const guild = client.guilds.cache.first();
-        if (!guild) return;
+        console.log(`🏰 Actualizando estadísticas del servidor: ${guild.name} (${guild.id})`);
+        console.log(`📊 Miembros totales: ${guild.memberCount}`);
         
-        // Obtener miembros actualizados
-        await guild.members.fetch();
+        // Cargar miembros
+        try {
+            await guild.members.fetch({ 
+                withPresences: true,
+                force: false
+            });
+        } catch (error) {
+            console.log('⚠️ No se pudieron cargar presencias:', error.message);
+        }
         
         const members = guild.members.cache;
-        const onlineMembers = members.filter(member => 
-            !member.user.bot && member.presence?.status !== 'offline' && member.presence?.status !== undefined
-        );
+        const allHumanMembers = members.filter(member => !member.user.bot);
         
-        const totalMembers = members.filter(member => !member.user.bot).size;
+        // Contadores por estado
+        const statusCounts = {
+            online: allHumanMembers.filter(m => m.presence?.status === 'online').size,
+            idle: allHumanMembers.filter(m => m.presence?.status === 'idle').size,
+            dnd: allHumanMembers.filter(m => m.presence?.status === 'dnd').size,
+            offline: allHumanMembers.filter(m => !m.presence || m.presence.status === 'offline').size
+        };
+        
+        console.log('=== ESTADÍSTICAS ===');
+        console.log(`🟢 Online: ${statusCounts.online}`);
+        console.log(`🟡 Idle: ${statusCounts.idle}`);
+        console.log(`🔴 DND: ${statusCounts.dnd}`);
+        console.log(`⚫ Offline: ${statusCounts.offline}`);
         
         // Actualizar estadísticas
+        const onlineCount = statusCounts.online + statusCounts.idle + statusCounts.dnd;
+        const totalHumanCount = allHumanMembers.size;
+        
         serverStats = {
-            onlineUsers: onlineMembers.size,
-            activeAttacks: serverStats.activeAttacks, // Mantener contador de ataques
-            serverLoad: Math.min(Math.floor((onlineMembers.size / totalMembers) * 100), 100),
+            onlineUsers: onlineCount,
+            activeAttacks: serverStats.activeAttacks,
+            serverLoad: totalHumanCount > 0 ? Math.min(Math.floor((onlineCount / totalHumanCount) * 100), 100) : 0,
             uptime: Math.floor(process.uptime()),
-            totalUsers: totalMembers,
+            totalUsers: totalHumanCount,
             successRate: 95 + Math.floor(Math.random() * 5),
-            users: Array.from(onlineMembers.values()).slice(0, 20).map(member => ({
+            
+            users: Array.from(allHumanMembers.values()).slice(0, 100).map(member => ({
                 id: member.user.id,
                 name: member.user.global_name || member.user.username,
                 username: member.user.username,
@@ -182,8 +285,10 @@ async function updateServerStats() {
                 avatar: member.user.avatar,
                 status: member.presence?.status || 'offline',
                 isBot: member.user.bot,
-                roles: member.roles.cache.map(role => role.name)
+                roles: member.roles?.cache?.map(role => role.name) || [],
+                joinedAt: member.joinedAt
             })),
+            
             guild: {
                 name: guild.name,
                 id: guild.id,
@@ -193,18 +298,120 @@ async function updateServerStats() {
             lastUpdate: new Date()
         };
         
-        console.log(`📊 Estadísticas actualizadas - ${serverStats.onlineUsers} usuarios online`);
+        console.log(`📊 Resumen - Online: ${serverStats.onlineUsers}, Total: ${serverStats.totalUsers}`);
+        
     } catch (error) {
         console.error('❌ Error actualizando estadísticas:', error);
+        serverStats = {
+            ...serverStats,
+            uptime: Math.floor(process.uptime()),
+            lastUpdate: new Date()
+        };
     }
 }
 
-// Función para obtener estadísticas
-async function getServerStats() {
-    return serverStats;
-}
+// === RUTAS API ===
 
-// API Routes para la página web
+// Ruta para obtener información del guild
+app.get('/api/guild-info', async (req, res) => {
+    try {
+        const guild = getTargetGuild();
+        if (!guild) {
+            return res.json({ 
+                success: false, 
+                error: 'No se encontró el servidor',
+                availableGuilds: client.guilds.cache.map(g => ({ name: g.name, id: g.id }))
+            });
+        }
+
+        const guildInfo = {
+            name: guild.name,
+            id: guild.id,
+            memberCount: guild.memberCount,
+            ownerId: guild.ownerId,
+            createdTimestamp: guild.createdTimestamp,
+            description: guild.description,
+            features: guild.features,
+            icon: guild.iconURL(),
+            configuredGuildId: GUILD_ID
+        };
+
+        res.json({
+            success: true,
+            data: guildInfo,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Ruta para listar todos los servidores disponibles
+app.get('/api/available-guilds', (req, res) => {
+    try {
+        const guilds = Array.from(client.guilds.cache.values()).map(guild => ({
+            id: guild.id,
+            name: guild.name,
+            memberCount: guild.memberCount,
+            icon: guild.iconURL(),
+            isTarget: guild.id === GUILD_ID
+        }));
+
+        res.json({
+            success: true,
+            data: guilds,
+            configuredGuildId: GUILD_ID,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Ruta para cambiar el guild objetivo (solo para desarrollo)
+app.post('/api/set-guild', (req, res) => {
+    if (process.env.NODE_ENV !== 'development') {
+        return res.status(403).json({
+            success: false,
+            error: 'Esta función solo está disponible en modo desarrollo'
+        });
+    }
+
+    const { guildId } = req.body;
+    if (!guildId) {
+        return res.status(400).json({
+            success: false,
+            error: 'Se requiere guildId'
+        });
+    }
+
+    const newGuild = client.guilds.cache.get(guildId);
+    if (!newGuild) {
+        return res.status(404).json({
+            success: false,
+            error: 'Servidor no encontrado'
+        });
+    }
+
+    // En una aplicación real, guardarías esto en la base de datos
+    // Por ahora solo actualizamos la variable (se reseteará al reiniciar)
+    console.log(`🎯 Cambiando servidor objetivo a: ${newGuild.name} (${guildId})`);
+    
+    res.json({
+        success: true,
+        message: `Servidor objetivo cambiado a: ${newGuild.name}`,
+        guild: {
+            id: newGuild.id,
+            name: newGuild.name
+        }
+    });
+});
 
 // Obtener estadísticas del servidor
 app.get('/api/stats', async (req, res) => {
@@ -218,26 +425,7 @@ app.get('/api/stats', async (req, res) => {
     } catch (error) {
         res.status(500).json({
             success: false,
-            error: 'Error obteniendo estadísticas',
-            timestamp: new Date().toISOString()
-        });
-    }
-});
-
-// Obtener información del guild
-app.get('/api/guild', async (req, res) => {
-    try {
-        const stats = await getServerStats();
-        res.json({
-            success: true,
-            data: stats.guild,
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: 'Error obteniendo información del servidor',
-            timestamp: new Date().toISOString()
+            error: 'Error obteniendo estadísticas'
         });
     }
 });
@@ -254,60 +442,20 @@ app.get('/api/online-users', async (req, res) => {
     } catch (error) {
         res.status(500).json({
             success: false,
-            error: 'Error obteniendo usuarios online',
-            timestamp: new Date().toISOString()
+            error: 'Error obteniendo usuarios online'
         });
     }
 });
 
-// Endpoint para enviar notificaciones a Discord
-app.post('/api/notify', async (req, res) => {
-    try {
-        const { message, type = 'info' } = req.body;
-        
-        if (!message) {
-            return res.status(400).json({
-                success: false,
-                error: 'Se requiere un mensaje'
-            });
-        }
-        
-        // Encontrar canal de notificaciones
-        const guild = client.guilds.cache.first();
-        if (!guild) {
-            return res.status(500).json({
-                success: false,
-                error: 'No se pudo encontrar el servidor'
-            });
-        }
-        
-        const channel = guild.channels.cache.find(ch => 
-            ch.type === 0 && ch.name.includes('general')
-        );
-        
-        if (channel) {
-            await channel.send(`**🌐 Notificación Web:** ${message}`);
-        }
-        
-        res.json({
-            success: true,
-            message: 'Notificación enviada',
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: 'Error enviando notificación',
-            timestamp: new Date().toISOString()
-        });
-    }
-});
-
-// Servir la página principal
+// Rutas para páginas web
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
-// Rutas para términos y privacidad
+
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
 app.get('/terms', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'terms.html'));
 });
@@ -315,13 +463,19 @@ app.get('/terms', (req, res) => {
 app.get('/privacy', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
 });
-// Iniciar servidor web
-app.listen(PORT, () => {
-    console.log(`🌐 Servidor web ejecutándose en puerto ${PORT}`);
-    console.log(`📊 API disponible en http://localhost:${PORT}/api/stats`);
+
+// Endpoint de salud
+app.get('/health', (req, res) => {
+    const guild = getTargetGuild();
+    res.status(200).json({ 
+        status: 'OK', 
+        bot: client.user ? `Conectado como ${client.user.tag}` : 'Desconectado',
+        guild: guild ? `${guild.name} (${guild.id})` : 'No configurado',
+        timestamp: new Date().toISOString()
+    });
 });
 
-// Función utilitaria para formatear tiempo
+// Función para formatear tiempo
 function formatUptime(seconds) {
     const days = Math.floor(seconds / (24 * 60 * 60));
     const hours = Math.floor((seconds % (24 * 60 * 60)) / (60 * 60));
@@ -344,68 +498,29 @@ process.on('SIGINT', async () => {
 });
 
 // Iniciar el bot de Discord
-const BOT_TOKEN = process.env.BOT_TOKEN || '';
+const BOT_TOKEN = process.env.BOT_TOKEN;
 
-if (!BOT_TOKEN || BOT_TOKEN === 'TU_BOT_TOKEN_AQUI') {
+if (!BOT_TOKEN) {
     console.error('❌ ERROR: No se configuró el token del bot');
     console.log('💡 Configura la variable de entorno BOT_TOKEN');
     process.exit(1);
 }
 
+// Iniciar servidor web
+app.listen(PORT, () => {
+    console.log(`🌐 Servidor web ejecutándose en puerto ${PORT}`);
+    console.log(`📊 Panel disponible en http://localhost:${PORT}`);
+    console.log(`🔧 Modo: ${process.env.NODE_ENV || 'development'}`);
+    
+    if (GUILD_ID) {
+        console.log(`🎯 Guild ID configurado: ${GUILD_ID}`);
+    } else {
+        console.log('⚠️  No se configuró GUILD_ID, usando primer servidor disponible');
+    }
+});
+
+// Conectar el bot
 client.login(BOT_TOKEN).catch(error => {
     console.error('❌ Error iniciando el bot:', error);
     process.exit(1);
 });
-
-// Middleware
-app.use(express.json());
-app.use(express.static('public'));
-app.use(express.urlencoded({ extended: true }));
-
-// Servir el archivo HTML principal
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-app.get('/test', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'test.html'));
-});
-// Endpoint para procesar compras (opcional)
-app.post('/api/purchase', async (req, res) => {
-    try {
-        const { product, discordId, price } = req.body;
-        
-        // Aquí puedes agregar lógica de procesamiento
-        console.log('Nueva compra recibida:', { product, discordId, price });
-        
-        // Simular procesamiento
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        res.json({ 
-            success: true, 
-            message: 'Compra procesada correctamente',
-            orderId: 'ORD-' + Date.now()
-        });
-    } catch (error) {
-        console.error('Error procesando compra:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error interno del servidor' 
-        });
-    }
-});
-
-// Endpoint de salud para Render
-app.get('/health', (req, res) => {
-    res.status(200).json({ 
-        status: 'OK', 
-        timestamp: new Date().toISOString(),
-        service: 'BigNet Website'
-    });
-});
-
-// Manejo de errores 404
-app.use((req, res) => {
-    res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
-});
-
-// Iniciar servidor
