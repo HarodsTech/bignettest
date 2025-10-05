@@ -143,7 +143,28 @@
         transform: rotate(45deg);
         animation: matrixFlow 3s linear infinite;
     }
+/* Estilos para usuarios offline */
+.user-item.offline {
+    opacity: 0.7;
+}
 
+.user-status.offline {
+    color: var(--text-muted) !important;
+}
+
+.user-name.offline {
+    color: var(--text-muted) !important;
+}
+
+/* Indicador visual de estado offline */
+.offline-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    margin-right: 8px;
+}
     @keyframes matrixFlow {
         0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
         100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
@@ -1891,26 +1912,38 @@ function updateUserList(users) {
   userList.innerHTML = '';
   
   if (users.length === 0) {
-    userList.innerHTML = '<li class="user-item"><div class="user-info"><div class="user-name">No hay usuarios conectados</div></div></li>';
+    userList.innerHTML = '<li class="user-item"><div class="user-info"><div class="user-name">No hay usuarios en el servidor</div></div></li>';
     return;
   }
   
-  users.forEach(user => {
+  // ✅ Ordenar usuarios: online primero, luego offline
+  const sortedUsers = [...users].sort((a, b) => {
+    const statusOrder = { 'online': 1, 'idle': 2, 'dnd': 3, 'offline': 4 };
+    return statusOrder[a.status] - statusOrder[b.status];
+  });
+  
+  sortedUsers.forEach(user => {
     const li = document.createElement('li');
     li.className = 'user-item';
     
     const initials = user.name ? user.name.substring(0, 2).toUpperCase() : '??';
     const statusIcon = user.isBot ? '🤖' : getStatusIcon(user.status);
     
+    // ✅ Diferentes estilos para usuarios offline
+    const isOffline = user.status === 'offline';
+    
     li.innerHTML = `
-      <div class="user-avatar">${initials}</div>
+      <div class="user-avatar" style="${isOffline ? 'opacity: 0.6;' : ''}">
+        ${initials}
+      </div>
       <div class="user-info">
-        <div class="user-name">
+        <div class="user-name" style="${isOffline ? 'color: var(--text-muted);' : ''}">
           ${user.name || user.username} 
           ${user.isBot ? '<span style="color: var(--warning-color); margin-left: 5px;">[BOT]</span>' : ''}
         </div>
-        <div class="user-status ${user.status}">
+        <div class="user-status ${user.status}" style="${isOffline ? 'color: var(--text-muted);' : ''}">
           ${statusIcon} ${getStatusText(user.status)}
+          ${isOffline ? '<span style="margin-left: 8px; font-size: 0.7rem;">(última vez)</span>' : ''}
         </div>
       </div>
     `;
@@ -1919,6 +1952,7 @@ function updateUserList(users) {
   });
 }
 
+// ✅ Asegúrate de tener esta función en tu frontend
 function getStatusIcon(status) {
   switch(status) {
     case 'online': return '🟢';
@@ -1938,7 +1972,6 @@ function getStatusText(status) {
     default: return 'Desconocido';
   }
 }
-
 function formatUptime(seconds) {
   const days = Math.floor(seconds / (24 * 60 * 60));
   const hours = Math.floor((seconds % (24 * 60 * 60)) / (60 * 60));
