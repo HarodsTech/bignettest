@@ -3,8 +3,6 @@ const { Client, GatewayIntentBits } = require('discord.js');
 const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
-
-// Cargar variables de entorno desde .env
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -346,7 +344,7 @@ process.on('SIGINT', async () => {
 });
 
 // Iniciar el bot de Discord
-const BOT_TOKEN = process.env.BOT_TOKEN || 'MTQyMzg2MzQ3MjQxNjEwMDQ1NQ.GkedgQ.U6P1uYhMwx6y8fO6CQu8J65di43bVhNuaHGP2s';
+const BOT_TOKEN = process.env.BOT_TOKEN || '';
 
 if (!BOT_TOKEN || BOT_TOKEN === 'TU_BOT_TOKEN_AQUI') {
     console.error('❌ ERROR: No se configuró el token del bot');
@@ -411,5 +409,3 @@ app.use((req, res) => {
 });
 
 // Iniciar servidor
-
-
