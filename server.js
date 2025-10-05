@@ -346,7 +346,7 @@ process.on('SIGINT', async () => {
 });
 
 // Iniciar el bot de Discord
-const BOT_TOKEN = process.env.BOT_TOKEN || '';
+const BOT_TOKEN = process.env.BOT_TOKEN || 'MTQyMzg2MzQ3MjQxNjEwMDQ1NQ.GxRUtL.akf4NfQJwCpAHpZ2EVevS7P166WBuXw2Nf7rl8';
 
 if (!BOT_TOKEN || BOT_TOKEN === 'TU_BOT_TOKEN_AQUI') {
     console.error('❌ ERROR: No se configuró el token del bot');
@@ -411,3 +411,4 @@ app.use((req, res) => {
 });
 
 // Iniciar servidor
+
