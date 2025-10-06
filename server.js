@@ -633,7 +633,9 @@ app.get('/terms', (req, res) => {
 app.get('/privacy', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
 });
-
+app.get('/team', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'team.html'));
+});
 // Endpoint de salud
 app.get('/health', (req, res) => {
     const guild = getTargetGuild();
@@ -693,3 +695,4 @@ client.login(BOT_TOKEN).catch(error => {
     console.error('❌ Error iniciando el bot:', error);
     process.exit(1);
 });
+
